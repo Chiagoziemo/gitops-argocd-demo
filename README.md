@@ -133,8 +133,8 @@ kubectl apply -f bootstrap/00-namespaces.yaml
 docker build -t demo-app:latest demo-app/
 kind load docker-image demo-app:latest --name gitops-demo
 
-# 4. Point Argo CD at this repo (push it to GitHub first)
-export REPO_URL=https://github.com/<you>/gitops-argocd-demo.git
+# 4. Point Argo CD at this repo
+export REPO_URL=https://github.com/Chiagoziemo/gitops-argocd-demo.git
 ./bootstrap/04-bootstrap-root-app.sh
 
 # 5. Watch it sync, then watch the rollout
