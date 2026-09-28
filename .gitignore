@@ -1,0 +1,14 @@
+# Go
+demo-app/demo-app
+
+# Local tooling
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local kubeconfigs / secrets, if ever dropped here by mistake
+*.kubeconfig
+kubeconfig*
+.env

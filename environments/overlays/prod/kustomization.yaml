@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/demo-app
+patches:
+  - path: patch-replicas.yaml
+    target:
+      kind: Rollout
+      name: demo-app

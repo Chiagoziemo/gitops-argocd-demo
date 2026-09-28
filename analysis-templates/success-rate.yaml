@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      # Runs every 15s for the duration of the canary step it's attached to.
+      # 3 consecutive failures (below successCondition) fail the whole Rollout
+      # and trigger automatic rollback -- see README "Failure-Mode Walkthrough".
+      interval: 15s
+      count: 5
+      successCondition: result[0] >= 0.95
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}", code!~"5.."}[1m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[1m]))

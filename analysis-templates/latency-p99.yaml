@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency-p99
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: latency-p99
+      interval: 15s
+      count: 5
+      # 250ms p99 is an intentionally tight SLO for the demo so the injected
+      # failure trips it within one or two analysis runs -- tune this for a
+      # real service using historical p99, not a guess.
+      successCondition: result[0] <= 0.25
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+          query: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{service="{{args.service-name}}"}[1m])) by (le)
+            )
