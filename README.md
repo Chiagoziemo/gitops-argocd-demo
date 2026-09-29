@@ -100,7 +100,7 @@ gitops-argocd-demo/
 │       ├── demo-app.yaml
 │       └── analysis-templates.yaml
 ├── environments/
-│   ├── base/demo-app/           # Rollout, Service, ConfigMap (kustomize base)
+│   ├── base/demo-app/           # Rollout, Service, ConfigMap, load-generator (kustomize base)
 │   └── overlays/{dev,prod}/     # per-env replica counts
 ├── analysis-templates/          # cluster-scoped SLO gates, reused by the Rollout
 │   ├── success-rate.yaml
@@ -164,6 +164,7 @@ Each entry: the decision, what else I considered, and the trade-off I accepted.
 | 7 | **Purpose-built Go service** for the canary target | Reuse `argoproj/rollouts-demo` image | Wanted metric names (`http_requests_total`, `http_request_duration_seconds_bucket`) and the failure-injection knob to be first-party and match this repo's own `AnalysisTemplates`, rather than reverse-engineering someone else's image. |
 | 8 | **Distroless** base image for the demo service | `alpine`, `scratch` | Smaller attack surface, no shell, forces the build to produce a static binary — cheap to do, signals the same discipline a real image pipeline should have. |
 | 9 | **`failureLimit: 3` over 5 checks at a 15s interval** | Fail on the first bad measurement | A single Prometheus scrape can be noisy (a GC pause, a cold connection pool). Tolerating 2 bad measurements before aborting avoids false-positive rollbacks on transient blips while still failing within ~45-60s of a real regression. |
+| 10 | **A synthetic `load-generator` Deployment ships inside `environments/base/demo-app/`**, always running | Require a human to run a curl loop / `scripts/generate-traffic.sh` during a demo | Found the hard way on the first live bootstrap: `http_requests_total` has zero series with no traffic at all, so every `AnalysisRun` errors on "no data returned from the metric provider" — indistinguishable from a real SLO breach, and it aborted a perfectly good `v1` rollout before anyone had a chance to react. Baking a low-volume background load generator into the GitOps-managed environment means the SLO gates always have real samples to evaluate, the same way a real service always has *some* baseline traffic (health checks, internal callers) even before a release ships. |
 
 ## Failure-Mode Walkthrough
 

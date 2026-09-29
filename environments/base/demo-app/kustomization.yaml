@@ -4,3 +4,4 @@ resources:
   - rollout.yaml
   - service.yaml
   - configmap.yaml
+  - load-generator.yaml

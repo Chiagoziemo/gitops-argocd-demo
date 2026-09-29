@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  labels:
+    app: load-generator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          # Continuous background traffic against the demo-app Service, so
+          # the AnalysisTemplates' PromQL queries always have real samples
+          # to evaluate -- without this, http_requests_total has zero
+          # series and every AnalysisRun errors out on "no data returned
+          # from the metric provider", which looks exactly like an SLO
+          # breach but isn't one. Two replicas at ~10 req/s combined is
+          # enough to keep both success-rate and latency-p99 populated
+          # through a 15s analysis interval.
+          command:
+            - sh
+            - -c
+            - "while true; do curl -s -o /dev/null http://demo-app; sleep 0.1; done"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              cpu: 50m
+              memory: 16Mi
