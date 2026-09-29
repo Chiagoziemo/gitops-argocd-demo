@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: demo-app
+  labels:
+    app: demo-app
+    # kube-prometheus-stack's Prometheus CR only auto-discovers
+    # ServiceMonitors carrying this label (its default
+    # serviceMonitorSelector) -- without it, this ServiceMonitor is silently
+    # ignored and /metrics is never scraped, no matter how much traffic the
+    # app receives.
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: demo-app
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
