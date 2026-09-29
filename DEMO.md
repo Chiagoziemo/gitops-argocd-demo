@@ -1,6 +1,6 @@
 # Demo Script (~3 minutes)
 
-Goal: in one continuous take, show a bad deploy getting caught and rolled back by an SLO gate, with zero manual intervention — and show Argo CD's GitOps self-heal fighting the demo's own shortcut in the background. This is the single most convincing moment in the repo; everything else (README decision log, hardening section) is there for whoever wants to read further after watching this.
+Goal: in one continuous take, show a bad deploy getting caught and rolled back by an SLO gate, with zero manual intervention — then use the demo script's own imperative shortcut to show a real, non-obvious edge in how Argo CD's self-heal actually works. This is the single most convincing moment in the repo; everything else (README decision log, hardening section) is there for whoever wants to read further after watching this.
 
 ## Setup (before recording, not part of the 3 minutes)
 
@@ -44,21 +44,21 @@ Cut to Terminal A. Narrate as it happens, don't rush this — it's the payoff:
 
 If there's time, briefly `kubectl describe analysisrun` in Terminal B to show the actual measurement values against the threshold — concrete numbers land better than a status word.
 
-**2:05–2:40 — The second safety net**
+**2:05–2:40 — The edge case self-heal doesn't cover**
 
-Cut to the Argo CD UI (or `kubectl -n argocd get application demo-app`).
+Cut to the Argo CD UI (or `kubectl -n argocd get application demo-app -o jsonpath='{.status.resources}'`).
 
-> "One more thing — that patch I ran a minute ago didn't go through git. Argo CD noticed the live cluster drifted from what's committed, flagged it out-of-sync, and it's about to self-heal it back — independent of the rollback that just happened. In a real environment, that's what stops anyone from quietly kubectl-patching around the process."
+> "Now — that patch I ran didn't go through git, so I'd expect Argo CD to flag it out-of-sync and self-heal it back. It doesn't. Watch: still says Synced."
 
-Show the sync status flip `OutOfSync` → `Synced`.
+> "Here's why, and it's worth knowing if you run Argo CD for real: `selfHeal` reverts fields your manifests actually *declare* when they drift from git. My patch *added* a field — an env var — that the manifest never mentions at all. There's nothing in git to compare it against, so Argo CD has no opinion on it and leaves it alone. Self-heal isn't a dragnet against every imperative change; it protects exactly what you've written down, nothing more."
 
 **2:40–3:00 — Close**
-> "So: a regression got caught by an SLO gate, rolled back automatically, and the cluster healed itself back to what's in git — all from one bad deploy, zero manual steps. The repo has a full decision log and a production-hardening section if you want to see what I'd change to run this for real — README's linked below."
+> "So: a regression got caught by an SLO gate and rolled back automatically with zero manual steps — but the GitOps safety net underneath it has a real blind spot for changes it was never told to care about. Both of those are in the README's decision log and failure-mode walkthrough, along with what I'd lock down to close that gap for real. Link's below."
 
 Cut.
 
 ## If something doesn't cooperate live
 
 - **`AnalysisRun` takes longer than expected to fail:** narrate through it — "it's still collecting measurements, give it a few more seconds" — rather than jumping ahead. Dead air with an explanation reads better than a jump cut mid-mechanism.
-- **Argo CD self-heals before the `AnalysisRun` finishes:** that's fine, actually — call it out live: "self-heal already reverted the env vars, and the rollout's converging on its own too — belt and suspenders." Don't treat it as something going wrong.
+- **Someone in the audience asks why Argo CD doesn't just revert *everything* imperative:** that's the whole point of the 2:05 beat — it only reverts drift on fields the manifest declares. If you want a harder guarantee than that, it has to come from policy (e.g. an admission controller rejecting undeclared fields), not from `selfHeal` alone — say so if it comes up.
 - **Have a pre-recorded fallback clip of one full inject-failure → rollback cycle**, timestamped, in case a live take runs long or a component hiccups — swap it in during editing rather than re-recording the whole three minutes.

@@ -24,7 +24,7 @@ It exists to show working judgment, not just working YAML: every non-obvious cho
 - **Progressive delivery** — Argo Rollouts replaces the `Deployment` for the demo service with a `Rollout` that shifts traffic in weighted steps (20% → 40% → 100%) instead of an all-at-once rolling update.
 - **Automated, metric-gated promotion** — each canary step is followed by an `AnalysisRun` that queries Prometheus directly; a step only promotes if live success-rate and p99 latency clear their thresholds.
 - **Automatic rollback on SLO breach** — a failing `AnalysisRun` aborts the `Rollout` and scales the canary `ReplicaSet` back to zero automatically. [`scripts/inject-failure.sh`](./scripts/inject-failure.sh) reproduces this on demand.
-- **GitOps self-heal as a safety net** — because everything here is declared in git, an out-of-band `kubectl patch` (like the failure-injection script uses) gets flagged `OutOfSync` and can be reverted by Argo CD itself, not just by rollback logic.
+- **GitOps self-heal, and its real limit** — Argo CD's `selfHeal` reverts drift on fields your manifests actually declare, protecting the cluster from config edits that disagree with git. It does *not* revert out-of-band fields your manifests never mention at all — `scripts/inject-failure.sh` demonstrates both the coverage and the gap (see [Failure-Mode Walkthrough](#failure-mode-walkthrough) #3).
 
 ## Architecture
 
@@ -184,9 +184,15 @@ Run `scripts/inject-failure.sh 0.4`. Sequence:
 5. Argo Rollouts marks the `Rollout` `Degraded`, aborts the promotion, and scales the canary `ReplicaSet` back to 0. The stable `ReplicaSet` never stopped serving 100% of *un-canaried* traffic — worst case, ~20-40% of traffic saw the elevated error rate for under a minute, not all of it, indefinitely.
 6. No one ran `kubectl rollout undo`. The SLO gate did.
 
-### 3. GitOps drift vs. auto-rollback — two safety nets, not one
+### 3. GitOps self-heal has a blind spot — additive drift isn't caught
 
-`inject-failure.sh` patches the live `Rollout` directly, which is *also* a drift event from Argo CD's perspective: the live spec no longer matches `environments/overlays/prod` in git. With `selfHeal: true` (set in every `Application` in this repo), Argo CD will revert that patch back to git's `FAILURE_RATE: "0.0"` on its next reconcile — independently of, and possibly before, the `AnalysisRun` even finishes. Watch `kubectl -n argocd get application demo-app` during the failure demo and you'll see it go `OutOfSync` and then back to `Synced`. This is worth narrating explicitly: **it's two independent control loops that both happen to protect you here** — Rollouts' SLO gate protects you from a bad revision reaching full traffic, and Argo CD's self-heal protects you from anyone (including this demo script) bypassing git entirely.
+The original design assumption here was that `inject-failure.sh` patching the live `Rollout` directly would *also* register as a drift event, and that `selfHeal: true` would revert it independently of the `AnalysisRun`'s own rollback. Running it against a real cluster proved that assumption wrong, and the actual behavior is a more useful lesson than the one originally intended:
+
+`inject-failure.sh` uses a JSON patch to **add** a new `env` array to the container spec — a field `environments/base/demo-app/rollout.yaml` never declares (the base only sets `envFrom`). After the patch, `kubectl -n argocd get application demo-app -o jsonpath='{.status.resources}'` still reports the `Rollout` as `Synced`, and the injected `FAILURE_RATE=0.4`/`VERSION=v2-bad` env vars are still present on the live object indefinitely — self-heal never touches them, even though `selfHeal: true` is set and confirmed active on the `Application`.
+
+Why: Argo CD's diff (like a `kubectl apply` three-way merge) only compares the fields the desired manifest actually declares. A field that's *absent from git entirely* — not changed, not removed, just never mentioned — isn't something Argo CD considers "drifted," because there's nothing in the desired state to diff it against. Self-heal reverts a live value that disagrees with what git says it should be; it doesn't reach for stuff bypassing git introduced that git never had an opinion on in the first place.
+
+The practical takeaway is sharper than the one this section originally made: **self-heal is not a dragnet against every imperative change — it protects exactly the fields your manifests declare, and nothing else.** A `kubectl edit` that *changes* `replicas: 5` to `replicas: 50` gets reverted. A `kubectl patch` that *adds* an undeclared field, or an env var, or an annotation your manifests never mention, can persist silently until someone notices or the resource is deleted and resynced from scratch. If you want every possible field locked to git, that has to be an explicit posture (e.g. admission-time policy rejecting undeclared fields, not something `selfHeal` gives you for free).
 
 ### 4. The metrics pipeline itself fails mid-canary
 
