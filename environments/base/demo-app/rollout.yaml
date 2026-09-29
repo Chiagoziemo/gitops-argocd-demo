@@ -18,6 +18,11 @@ spec:
       containers:
         - name: demo-app
           image: demo-app:latest
+          # kind loads this image straight into node containerd (kind load
+          # docker-image) -- with the default `Always` policy for a :latest
+          # tag, kubelet ignores that and tries to pull from Docker Hub
+          # instead, where this image doesn't exist.
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
