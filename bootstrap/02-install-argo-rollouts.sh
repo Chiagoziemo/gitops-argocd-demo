@@ -2,9 +2,14 @@
 # Installs the Argo Rollouts controller and kubectl plugin manifests.
 set -euo pipefail
 
-ROLLOUTS_VERSION="${ROLLOUTS_VERSION:-stable}"
+ROLLOUTS_VERSION="${ROLLOUTS_VERSION:-latest}"
 
-kubectl apply -n argo-rollouts -f "https://github.com/argoproj/argo-rollouts/releases/${ROLLOUTS_VERSION}/download/install.yaml"
+# --server-side: the rollouts.argoproj.io / analysisruns.argoproj.io CRDs are
+# large enough that a client-side `kubectl apply` overflows the 256KB
+# last-applied-configuration annotation limit. Server-side apply doesn't use
+# that annotation at all.
+kubectl apply -n argo-rollouts --server-side --force-conflicts \
+  -f "https://github.com/argoproj/argo-rollouts/releases/${ROLLOUTS_VERSION}/download/install.yaml"
 
 echo "Waiting for the rollouts controller to become available..."
 kubectl -n argo-rollouts rollout status deployment/argo-rollouts --timeout=180s

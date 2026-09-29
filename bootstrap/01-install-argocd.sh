@@ -4,7 +4,11 @@ set -euo pipefail
 
 ARGOCD_VERSION="${ARGOCD_VERSION:-stable}"
 
-kubectl apply -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml" -n argocd
+# --server-side: the applicationsets.argoproj.io CRD is large enough that a
+# client-side `kubectl apply` overflows the 256KB last-applied-configuration
+# annotation limit. Server-side apply doesn't use that annotation at all.
+kubectl apply -n argocd --server-side --force-conflicts \
+  -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
 
 echo "Waiting for ArgoCD server to become available..."
 kubectl -n argocd rollout status deployment/argocd-server --timeout=180s

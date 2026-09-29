@@ -134,7 +134,8 @@ docker build -t demo-app:latest demo-app/
 kind load docker-image demo-app:latest --name gitops-demo
 
 # 4. Point Argo CD at this repo
-export REPO_URL=https://github.com/Chiagoziemo/gitops-argocd-demo.git
+# (apps/root-app.yaml and apps/child-apps/*.yaml hardcode this repo's URL --
+# if you forked it, update repoURL in those three files first)
 ./bootstrap/04-bootstrap-root-app.sh
 
 # 5. Watch it sync, then watch the rollout
