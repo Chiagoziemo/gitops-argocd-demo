@@ -6,7 +6,7 @@ This repo is a self-contained GitOps reference implementation: Argo CD manages t
 
 It exists to show working judgment, not just working YAML: every non-obvious choice below is written down with the alternative I didn't take and why, and the write-up is honest about what's demo-scope versus what a real production system would need on top (see [Production Hardening](#production-hardening)).
 
-> Looking for the walkthrough script instead of the design rationale? See [`DEMO.md`](./DEMO.md).
+> Looking for the walkthrough script instead of the design rationale? See [`DEMO.md`](./DEMO.md). Setting this up from scratch on a new machine? See [`SETUP.md`](./SETUP.md).
 
 ## Table of Contents
 
@@ -87,6 +87,7 @@ Argo Rollouts and the Prometheus stack are installed **imperatively** during boo
 gitops-argocd-demo/
 ├── README.md                    # this file
 ├── DEMO.md                      # 3-minute narrated demo script
+├── SETUP.md                     # from-scratch setup guide + troubleshooting
 ├── bootstrap/                   # one-time, imperative cluster bring-up (you run these)
 │   ├── kind-cluster.yaml
 │   ├── 00-namespaces.yaml
@@ -118,6 +119,8 @@ gitops-argocd-demo/
 ## Quickstart
 
 Prerequisites: `docker`, `kind`, `kubectl`, `helm`, and the [Argo Rollouts kubectl plugin](https://argo-rollouts.readthedocs.io/en/stable/installation/#kubectl-plugin-installation).
+
+> Setting this up on a machine with none of that installed yet, or want the failure-injection demo plus a troubleshooting table of every real issue this hit along the way? See [`SETUP.md`](./SETUP.md) instead.
 
 ```bash
 # 1. Cluster
@@ -237,4 +240,4 @@ What's in this repo is scoped to demonstrate the progressive-delivery and SLO-ro
 
 ---
 
-Questions, or want to see it run end-to-end? See [`DEMO.md`](./DEMO.md) for a 3-minute narrated walkthrough.
+Questions, or want to see it run end-to-end? See [`DEMO.md`](./DEMO.md) for a 3-minute narrated walkthrough, or [`SETUP.md`](./SETUP.md) to build it yourself from scratch.
